@@ -50,8 +50,6 @@ def initiatesheets(run_token):
     return data
 
 
-
-
 def list_reports(token, counter=5):
     URL = str("https://api.smartsheet.com/2.0/reports")
     call = req.get_call(URL, token)
@@ -646,6 +644,7 @@ def find_col_value_in_row(row,col_name,invMap):
            output = cell["value"]
    return output
 
+#columns to search is a str value
 def find_value_in_column(data,colMap,value,columns_to_search):
    output = {}
    counter = 0
