@@ -9,8 +9,8 @@ folder_prefix = "https://api.smartsheet.com/2.0/folders/"
 sights_prefix = "https://api.smartsheet.com/2.0/sights/"
 
 
-
-
+#### Basic Functions ####
+#### Sheets ###
 
 def getSheet(SheetID, token, counter=5):
     SheetID = str(int(SheetID))
@@ -49,6 +49,22 @@ def initiatesheets(run_token):
     data["id"] = new_data["id"]
     return data
 
+def update_sheet_share(payload, run_token, SheetID, counter=5):
+    URL = str(sheets_prefix + str(int(SheetID)) + "/shares")
+    call = req.post_call(URL, run_token, payload)
+    result = call.execute_call(counter)
+    return result
+
+def move_sheet(run_token, SheetID, destinationId, destinationType, counter=5):
+    package = {}
+    package['destinationType'] = destinationType
+    package['destinationId'] = destinationId
+    URL = str(sheets_prefix + str(int(SheetID)) + "/move")
+    call = requests.post(URL, run_token, package)
+    result = call.json()
+    return result
+
+###Reports###
 
 def list_reports(token, counter=5):
     URL = str("https://api.smartsheet.com/2.0/reports")
@@ -101,20 +117,7 @@ def updateRows(payload, run_token, SheetID, counter=5):
     return result
 
 
-def update_sheet_share(payload, run_token, SheetID, counter=5):
-    URL = str(sheets_prefix + str(int(SheetID)) + "/shares")
-    call = req.post_call(URL, run_token, payload)
-    result = call.execute_call(counter)
-    return result
 
-def move_sheet(run_token, SheetID, destinationId, destinationType, counter=5):
-    package = {}
-    package['destinationType'] = destinationType
-    package['destinationId'] = destinationId
-    URL = str(sheets_prefix + str(int(SheetID)) + "/move")
-    call = requests.post(URL, run_token, package)
-    result = call.json()
-    return result
 
 
 def update_report_share(payload, run_token, ReportID, counter=5):
