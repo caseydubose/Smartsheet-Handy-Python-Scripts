@@ -118,7 +118,7 @@ def find_row_by_identifiers(column_value_pair_dict, colMap, rows, start_row=0, e
     """column_value_pair_dict must be a dictionary of format {'column_name1':'value1','column_name2','value2'   """
     output = []
     for row in rows:
-        if row["rowNumber"] >= start_row and row["rowNumber"] <= end_row:
+        if start_row <= row["rowNumber"] <= end_row:
             found = False
             for cell in row["cells"]:
                 try:
@@ -131,7 +131,7 @@ def find_row_by_identifiers(column_value_pair_dict, colMap, rows, start_row=0, e
                     else:
                         found = False
                         break
-            if found == True:
+            if found:
                 output.append(row)
     if len(output) > 1:
         output = "Found more than 1 row, use better criteria"
@@ -173,7 +173,7 @@ def find_sheetformatting_from_report(reportId, run_token):
                 #             Createdby = dict['createdby']
                 #             frequent = dict['frequency']
                 #             print(SheetName + ", " + RuleName + ", " + Createdby + ", " + frequent)
-   return(updates_package)
+   return updates_package
 
 
 def find_value_in_column(data,colMap,value,columns_to_search):
@@ -204,7 +204,7 @@ def get_workspace(workspaceId, run_token, params):
 
 def getAllObjectsinWorkspace(workpsaceID,run_token):
     sheets = {}
-    data = functions.get_workspace(workpsaceID, run_token, "none")
+    data = get_workspace(workpsaceID, run_token, "none")
     folders = []
     if "sheets" in data:
         for sheet in data["sheets"]:
@@ -222,6 +222,7 @@ def getAllObjectsinWorkspace(workpsaceID,run_token):
             for i in sheetsTemp:
                 sheets[i] = sheetsTemp[i]
     return sheets
+
 def getAllSheetsinFolder(folderId, sheets, run_token):
     data = get_Folder(folderId, run_token)
     if data.has_key("sheets"):
@@ -553,7 +554,7 @@ def update_formatting_from_report(reportId, format_string, target_column, run_to
        if current_sheet_id_check != current_sheet_id:
            current_sheet_id = row["sheetId"]
            Cdata, CcolMap, CrowMap, CinvMap = initiateSheet(current_sheet_id, run_token)
-           if update_column_formatting == True:
+           if update_column_formatting:
                if target_column in CinvMap:
                    package = {"format":format_string}
                    response = updateColumns(package, invMap[target_column],run_token, current_sheet_id)

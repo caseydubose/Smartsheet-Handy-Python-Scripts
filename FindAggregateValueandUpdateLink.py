@@ -1,5 +1,6 @@
 import Basic_Functions3 as functions
 
+
 def find_value_in_column(data, colMap, searchvalue, columns_to_search):
     output = {}
     counter = 0
@@ -17,24 +18,23 @@ This script will search for a project in an aggregate sheet by a criteria, colle
 The target sheet ids can be used to their own find and replace function. 
 '''
 
-
-#pull data from aggregate sheet
+# pull data from aggregate sheet
 token = XXXXXXX
+aggsheetid = XXXXXXX
 data, colMap, rowMap, invMap = functions.initiateSheet(aggsheetid, token)
 
-#search aggregate sheet to find projects that match criteria
-aggsheetid = XXXXXXX
+# search aggregate sheet to find projects that match criteria
 searchvalue = "XXXX"
 columns_to_search = "XXXXX"
 output = find_value_in_column(data, colMap, searchvalue, columns_to_search)
 
-#create list of matching rowids
+# create list of matching rowids
 matchingrows = []
 for row in output.values():
     rowId = row['rowId']
     matchingrows.append(rowId)
 
-#find target sheets in aggregate that match target link name value and return sheetid of hyperlink
+# find target sheets in aggregate that match target link name value and return sheetid of hyperlink
 targetsheets = []
 targetlinkvalue = "XXXX"
 for id in matchingrows:
@@ -47,7 +47,7 @@ for id in matchingrows:
                 except KeyError:
                     pass
 
-#search target sheets for value to update in target column, adjust payload to fit update needed on target sheet
+# search target sheets for value to update in target column, adjust payload to fit update needed on target sheet
 
 searchvalue = 'XXXX'
 columns_to_search = "XXXX"
@@ -62,10 +62,3 @@ for targetsheetid in targetsheets:
             {'columnId': colid, 'value': "OmniChannel"}]}
         results = functions.updateRows(payload, token, targetsheetid)
         print(results)
-
-
-
-
-
-
-
