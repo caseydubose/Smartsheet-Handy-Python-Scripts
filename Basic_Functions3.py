@@ -106,6 +106,20 @@ def createSheetMap(sheetData):
         invMap[colMap[col]] = col
     return colMap, rowMap, invMap
 
+
+def delete_sheet(sheet_id, run_token, counter=5):
+    sheet_id = str(int(sheet_id))
+    URL = str(sheets_prefix + sheet_id)
+    result = requests.delete(URL, headers={"Authorization": str("Bearer " + run_token)})
+    return result
+
+def delete_sight(sight_id, run_token, counter=5):
+    sight_id = str(int(sight_id))
+    URL = str(sights_prefix + sight_id)
+    result = requests.delete(URL, headers={"Authorization": str("Bearer " + run_token)})
+    return result
+
+
 def find_col_value_in_row(row,col_name,invMap):
    output = "No Value"
    for cell in row["cells"]:
@@ -187,7 +201,7 @@ def find_value_in_column(data,colMap,value,columns_to_search):
    return output
 
 
-#pull all objects at workspace level, will recursively do subfolders if found.
+
 def get_Folder(folderId, run_token, params):
     URL = "https://api.smartsheet.com/2.0/folders/" + str(int(folderId))
     call = req.get_call(URL, run_token, params="none")
@@ -201,27 +215,29 @@ def get_workspace(workspaceId, run_token, params):
     result = call.execute_call(5)
     return result
 
-
-def getAllObjectsinWorkspace(workpsaceID,run_token):
+def getAllObjectsinWorkspace(workspace_id,run_token):
+    sheets_list = []
+    reports_list = []
+    sights_list = []
     sheets = {}
-    data = get_workspace(workpsaceID, run_token, "none")
+    data = functions.get_workspace(workspace_id, run_token, "none")
     folders = []
     if "sheets" in data:
         for sheet in data["sheets"]:
-            sheetslist.append(sheet["id"])
+            sheets_list.append(sheet["id"])
     if "reports" in data:
         for report in data["reports"]:
-            reports.append(report["id"])
+            reports_list.append(report["id"])
     if "sights" in data:
         for sight in data["sights"]:
-            sights.append(sight["id"])
+            sights_list.append(sight["id"])
     if "folders" in data:
         for folder in data["folders"]:
             sheetsTemp = {}
             sheetsTemp = getAllSheetsinFolder(str(folder["id"]),sheets,run_token)
             for i in sheetsTemp:
                 sheets[i] = sheetsTemp[i]
-    return sheets
+    return sheets, sheets_list, reports_list, sights_list
 
 def getAllSheetsinFolder(folderId, sheets, run_token):
     data = get_Folder(folderId, run_token)
