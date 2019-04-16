@@ -1,6 +1,6 @@
 import requests
 
-## from Token import maintoken  # Use your preferred token process
+from Token import maintoken  # Use your preferred token process
 
 
 def get_all_workspace(workspace_id, run_token):
@@ -22,15 +22,12 @@ def get_all_objects_in_workspace(workspace_id, run_token):
 
     def get_all_objects_in_folder(folder):
         data = folder
-        if "sheets" in data:
-            for sheet in data["sheets"]:
-                sheets_list.append(sheet["id"])
-        if "reports" in data:
-            for report in data["reports"]:
-                reports_list.append(report["id"])
-        if "sights" in data:
-            for sight in data["sights"]:
-                sights_list.append(sight["id"])
+        for sheet in data.get('sheets', {}):
+            sheets_list.append(sheet["id"])
+        for report in data.get('reports', {}):
+            reports_list.append(report["id"])
+        for sight in data.get('sights', {}):
+            sights_list.append(sight["id"])
         if "folders" in data:
             for folder in data["folders"]:
                 folders_list.append(folder['id'])
@@ -39,15 +36,12 @@ def get_all_objects_in_workspace(workspace_id, run_token):
                     sheets[i] = sheets_temp[i]
         return sheets
 
-    if "sheets" in data:
-        for sheet in data["sheets"]:
-            sheets_list.append(sheet["id"])
-    if "reports" in data:
-        for report in data["reports"]:
-            reports_list.append(report["id"])
-    if "sights" in data:
-        for sight in data["sights"]:
-            sights_list.append(sight["id"])
+    for sheet in data.get('sheets', {}):
+        sheets_list.append(sheet["id"])
+    for report in data.get('reports', {}):
+        reports_list.append(report["id"])
+    for sight in data.get('sights', {}):
+        sights_list.append(sight["id"])
     if "folders" in data:
         for folder in data["folders"]:
             folders_list.append(folder['id'])
@@ -57,6 +51,8 @@ def get_all_objects_in_workspace(workspace_id, run_token):
     return sheets_list, reports_list, sights_list, folders_list
 
 
-run_token = 'Your Preferred Method'
-workspace_id = 'ID to Search'
+run_token = maintoken.caseytok
+workspace_id = 6283724624029572
 sheets_list, reports_list, sights_list, folders_list = get_all_objects_in_workspace(workspace_id, run_token)
+
+print(sheets_list)
