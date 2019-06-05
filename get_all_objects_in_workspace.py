@@ -51,7 +51,7 @@ def get_all_objects_in_workspace(workspace_id, run_token):
     return sheets_list, reports_list, sights_list, folders_list
 
 
-run_token = maintoken.caseytok
+run_token = "TOKEN"
 workspace_id = 6283724624029572
 sheets_list, reports_list, sights_list, folders_list = get_all_objects_in_workspace(workspace_id, run_token)
 

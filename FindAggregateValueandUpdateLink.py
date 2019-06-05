@@ -21,7 +21,7 @@ The target sheet ids can be used to their own find and replace function.
 # pull data from aggregate sheet
 token = XXXXXXX
 aggsheetid = XXXXXXX
-data, colMap, rowMap, invMap = functions.initiateSheet(aggsheetid, token)
+data, colMap, rowMap, invMap = functions.initiate_sheet(aggsheetid, token)
 
 # search aggregate sheet to find projects that match criteria
 searchvalue = "XXXX"
@@ -53,12 +53,12 @@ searchvalue = 'XXXX'
 columns_to_search = "XXXX"
 
 for targetsheetid in targetsheets:
-    data, colMap, rowMap, invMap = functions.initiateSheet(targetsheetid, token)
+    data, colMap, rowMap, invMap = functions.initiate_sheet(targetsheetid, token)
     output = find_value_in_column(data, colMap, searchvalue, columns_to_search)
     for values in output.values():
         rowid = values['rowId']
         colid = values['cell']['columnId']
         payload = {'id': rowid, 'cells': [
             {'columnId': colid, 'value': "OmniChannel"}]}
-        results = functions.updateRows(payload, token, targetsheetid)
+        results = functions.update_rows(payload, token, targetsheetid)
         print(results)

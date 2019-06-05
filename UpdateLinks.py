@@ -4,7 +4,7 @@ import csv
 token = "api key"
 
 '''
-This script ended up being a bit more manual but can be helpful if you want to stage data before  committing it to 
+This script ended up being a bit more manual but can be helpful if you want to stage data before committing it to 
 update. 
 1) Pulls data from an aggregate sheet, finds the targets of the hyperlinks, and loads into a .CSV file.  (I'd likely 
 merge with a find formula to streamline this in the future.)
@@ -61,16 +61,13 @@ def create_cell_link_dict():
             projectcontactsurl = row['projectcontactsurl']
             projectcharterurl = row['projectcharterurl']
             impactedstoresurl = row['impactedstoresurl']
-            data, col_map, row_map, inv_map = functions.initiateSheet(criticalpathid, token)
+            data, col_map, row_map, inv_map = functions.initiate_sheet(criticalpathid, token)
             output = find_value_in_column(data, col_map, search_value41, "Task Name")
             for values in output.values():
                 rowid = values['rowId']
                 colid = values['cell']['columnId']
                 payload = {'id': rowid, 'cells': [
                     {'columnId': colid, 'value': search_value41, 'hyperlink': {'url': projectcharterurl}}]}
-                results = functions.updateRows(payload, token, criticalpathid)
+                results = functions.update_rows(payload, token, criticalpathid)
                 print(results)
         return results
-
-# Run
-# create_cell_link_dict()
