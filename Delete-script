@@ -1,0 +1,505 @@
+import logging
+import requests
+from Token import maintoken  # Use your preferred token process
+import Basic_Functions3 as functions
+import os
+
+THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
+logging.basicConfig(filename='example.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
+
+
+def get_all_workspace(workspace_id, run_token):
+    params = {'loadAll': True}
+    url = str("https://api.smartsheet.com/2.0/workspaces/" + str(int(workspace_id)))
+    output = requests.get(url, params=params,
+                          headers={"Authorization": str("Bearer " + run_token), 'Content-Type': 'application/json'})
+    result = output.json()
+    return result
+
+
+def delete_row(sheet_id, run_token, row_id):
+    URL = str("https://api.smartsheet.com/2.0/sheets/" + str(sheet_id) + "/rows?ids=" + str(row_id))
+    output = requests.delete(URL,
+                             headers={"Authorization": str("Bearer " + run_token), 'Content-Type': 'application/json'})
+    result = output.json()
+    return result
+
+
+def get_all_objects_in_workspace(workspace_id, search_value, run_token):
+    data = get_all_workspace(workspace_id, run_token)
+    sheets_list = []
+    reports_list = []
+    sights_list = []
+    folders_list = []
+    sheet_name_list = []
+    sheets = {}
+
+    def get_all_objects_in_folder(folder):
+        data = folder
+        for sheet in data.get('sheets', {}):
+            if search_value in sheet['name']:
+                sheets_list.append(sheet["id"])
+                sheet_name_list.append(sheet['name'])
+        for report in data.get('reports', {}):
+            reports_list.append(report["id"])
+        for sight in data.get('sights', {}):
+            sights_list.append(sight["id"])
+        if "folders" in data:
+            for folder in data["folders"]:
+                folders_list.append(folder['id'])
+                sheets_temp = get_all_objects_in_folder(folder)
+                for i in sheets_temp:
+                    sheets[i] = sheets_temp[i]
+        return sheets
+
+    for sheet in data.get('sheets', {}):
+        if search_value in sheet['name']:
+            sheets_list.append(sheet["id"])
+            sheet_name_list.append(sheet['name'])
+    for report in data.get('reports', {}):
+        reports_list.append(report["id"])
+    for sight in data.get('sights', {}):
+        sights_list.append(sight["id"])
+    if "folders" in data:
+        for folder in data["folders"]:
+            folders_list.append(folder['id'])
+            sheets_temp = get_all_objects_in_folder(folder)
+            for i in sheets_temp:
+                sheets[i] = sheets_temp[i]
+    return sheets_list, reports_list, sights_list, folders_list, sheet_name_list
+
+
+def find_value_in_column(data, colMap, value, columns_to_search):
+    output = {}
+    counter = 0
+    for row in data["rows"]:
+        for cell in row["cells"]:
+            if "value" in cell and colMap[cell["columnId"]] in columns_to_search and cell["value"] == value:
+                output[counter] = {"rowId": row["id"], "rowNumber": row["rowNumber"], "cell": cell,
+                                   "column": colMap[cell["columnId"]], "row": row}
+                counter += 1
+    return output
+
+
+def delete_cmmi():
+    """ Delete all rows where the name in the category matches the name in the search list """
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)
+        my_file = os.path.join(THIS_FOLDER, 'deletevalues.txt')
+        with open(my_file) as temp_file:
+            delete_values_list = [line.rstrip("\n") for line in temp_file]
+            for delete_value in delete_values_list:
+                output = find_value_in_column(data, colMap, delete_value, "Category")
+                for match_id in output.values():
+                    row_id = match_id['rowId']
+                    result = delete_row(sheet_id, run_token, row_id)
+                    print(str(str(sheet_id) + " | Delete_CMMI | " + result['message']))
+                    logging.info(str(sheet_id) + " | Delete_CMMI | " + str(result))
+        OM = find_value_in_column(data, colMap, "O&M Status", "Metrics")
+        for match_id in OM.values():
+            row_id = match_id['rowId']
+            result = delete_row(sheet_id, run_token, row_id)
+            print(str(str(sheet_id) + " | Delete_CMMI | " + result['message']))
+            logging.info(str(sheet_id) + " | Delete_CMMI | " + str(result))
+        Budget = find_value_in_column(data, colMap, "Budget Status", "Metrics")
+        for match_id in Budget.values():
+            row_id = match_id['rowId']
+            result = delete_row(sheet_id, run_token, row_id)
+            print(str(str(sheet_id) + " | Delete_CMMI | " + result['message']))
+            logging.info(str(sheet_id) + " | Delete_CMMI | " + str(result))
+
+
+def update_source():
+    """
+    Update rows 5,6,7,8 to =COUNTIF(Source$12:Source$19, $Metrics@row) for rows 5 - 8 column Source.
+    """
+
+    target_col_value = "Source"  # Target Column Name
+    format_string = None
+    formula_string = "=COUNTIF(Source$12:Source$17, $Metrics@row"
+    target_rows = [5, 6, 7, 8]
+
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        target_col_id = invMap[str(target_col_value)]
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            for row_number in target_rows:
+                if row['rowNumber'] == row_number:
+                    row_id = row['id']
+                    cellPackage = [
+                        {"columnId": target_col_id, "format": format_string, "value": None, "strict": "false",
+                         "formula": formula_string}]
+                    updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Update_Source | " + result['message']))
+        logging.info(str(sheet_id) + " | Update_Source | " + str(result))
+
+
+def update_prior_month():
+    # =COUNTIF([Prior Month Symbol]$12:[Prior Month Symbol]$19, $Metrics@row) for rows 5 - 8 | Prior Months Symbol
+    # define cell update values
+    target_col_value = "Prior Month Symbol"  # Target Column Name
+    format_string = None
+    formula_string = "=COUNTIF([Prior Month Symbol]$12:[Prior Month Symbol]$17, $Metrics@row)"
+    target_rows = [5, 6, 7, 8]
+
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        target_col_id = invMap[str(target_col_value)]
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            for row_number in target_rows:
+                if row['rowNumber'] == row_number:
+                    row_id = row['id']
+                    cellPackage = [
+                        {"columnId": target_col_id, "format": format_string, "value": None, "strict": "false",
+                         "formula": formula_string}]
+                    updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Update_Prior_Month | " + result['message']))
+        logging.info(str(sheet_id) + " | Update_Prior_Month | " + str(result))
+
+
+def testing_status_update():
+    format_string = None
+    target_cols = ["7", "8", "9", "10", "11", "12", "1", "2", "3", "4", "5", "6", "1.1", "Column16",
+                   "Column17", "Column18", "Column19", "Column20", "Column21", "Column22", "Column23", "Column24",
+                   "Column25",
+                   "Column26"]
+    row_number = 16
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            if row['rowNumber'] == row_number:
+                row_id = row['id']
+                cellPackage = []
+                for columns in target_cols:
+                    formula_string = str("=[" + columns + "]" + "72")
+                    target_col_id = invMap[str(columns)]
+                    cellPackage.append(
+                        {"columnId": target_col_id, "format": format_string, "value": None, "strict": "false",
+                         "formula": formula_string})
+                updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Testing_Status_Update | " + result['message']))
+        logging.info(str(sheet_id) + " | Testing_Status_Update | " + str(result))
+
+
+def schedule_status_update():
+    ## =IFERROR(IF(COUNTIF([7]24:[7]25, 'Not Complete') > 0, [7]39, [7]28), 'Not Complete')
+    format_string = None
+    target_cols = ["7", "8", "9", "10", "11", "12", "1", "2", "3", "4", "5", "6", "1.1", "Column16",
+                   "Column17", "Column18", "Column19", "Column20", "Column21", "Column22", "Column23", "Column24",
+                   "Column25",
+                   "Column26"]
+    row_number = 12
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            if row['rowNumber'] == row_number:
+                row_id = row['id']
+                cellPackage = []
+                for columns in target_cols:
+                    formula_string = str("=IFERROR(IF(COUNTIF([" + columns + "]" + "24:[" + columns + "]25, "
+                                                                                                      "\"Not Complete\") "
+                                                                                                      "> 0, "
+                                                                                                      "[" + columns +
+                                         "]38, [" + columns + "]28), \"Not Complete\")")
+                    target_col_id = invMap[str(columns)]
+                    cellPackage.append(
+                        {"columnId": target_col_id, "format": format_string, "value": None, "strict": "false",
+                         "formula": formula_string})
+                updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Schedule_Status_Update | " + result['message']))
+        logging.info(str(sheet_id) + " | Schedule_Status_Update | " + str(result))
+
+
+def CUM_Defects_Post_testing_update():
+    ##=IF(AND([7]58 = "Not Complete", [Prior Years]62 = "Not Complete"), "Not Complete", IF(AND(ISNUMBER([Prior Years]62) = true, ISNUMBER([7]58) = true), [Prior Years]62 + [7]58, [7]58))
+    ##=IF(AND(7]58 = "Not Complete", [Prior Years]62 = "Not Complete"), "Not Complete", IF(AND(ISNUMBER([Prior Years]62) = true, ISNUMBER([7]58) = true), [Prior Years]62 + [7]58, [7]58))
+    format_string = None
+    target_cols = ["7", "8", "9", "10", "11", "12", "1", "2", "3", "4", "5", "6", "1.1", "Column16",
+                   "Column17", "Column18", "Column19", "Column20", "Column21", "Column22", "Column23", "Column24",
+                   "Column25",
+                   "Column26"]
+    row_number = 61
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            if row['rowNumber'] == row_number:
+                row_id = row['id']
+                cellPackage = []
+                for columns in target_cols:
+                    if target_cols.index(columns) == 0:
+                        formula_string = str("=IF(AND([" + columns + "]57 = \"Not Complete\", [Prior Years]61 = \"Not "
+                                                                     "Complete\"), \"Not Complete\", IF(AND(ISNUMBER(["
+                                                                     "Prior Years]61) = true, ISNUMBER([" + columns +
+                                             "]57) = true), [Prior Years]61 + [" + columns + "]57, [" + columns + "]57))")
+                    else:
+                        pred_col_index = target_cols.index(columns) - 1
+                        pred_col = target_cols[pred_col_index]
+                        formula_string = str("=IF(AND([" + columns + "]57 = \"Not Complete\", [" + pred_col +
+                                             "]61 = \"Not Complete\"), \"Not Complete\", IF(AND(ISNUMBER(["
+                                             + pred_col + "]61) = true, ISNUMBER([" + columns +
+                                             "]57) = true), [" + pred_col + "]61 + [" + columns + "]57, \
+                                                                                                      [" + columns + "]57))")
+
+                    target_col_id = invMap[str(columns)]
+                    cellPackage.append(
+                        {"columnId": target_col_id, "format": format_string, "value": None, "strict": "false",
+                         "formula": formula_string})
+                updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | CUM_Defects_Post_Testing | " + result['message']))
+        logging.info(str(sheet_id) + " | CUM_Defects_Post_Testing | " + str(result))
+
+
+def CUM_Defects_Closed_update():
+    # =IF(AND([7]56 = "Not Complete", [Prior Years]63 = "Not Complete"), "Not Complete", IF(AND(ISNUMBER([Prior Years]63) = true, ISNUMBER([7]57) = true), [Prior Years]63 + [7]56, [7]56))
+    format_string = None
+    target_cols = ["7", "8", "9", "10", "11", "12", "1", "2", "3", "4", "5", "6", "1.1", "Column16",
+                   "Column17", "Column18", "Column19", "Column20", "Column21", "Column22", "Column23", "Column24",
+                   "Column25",
+                   "Column26"]
+    row_number = 62
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            if row['rowNumber'] == row_number:
+                row_id = row['id']
+                cellPackage = []
+                for columns in target_cols:
+                    if target_cols.index(columns) == 0:
+                        formula_string = str("=IF(AND([" + columns + "]56 = \"Not Complete\", [Prior Years]62 = \"Not "
+                                                                     "Complete\"),\"Not Complete\", IF(AND(ISNUMBER(["
+                                                                     "Prior Years]62) = true, ISNUMBER([" + columns +
+                                             "]56) = true), [Prior Years]62 + [" + columns + "]56, [" + columns + "]56))")
+                    else:
+                        pred_col_index = target_cols.index(columns) - 1
+                        pred_col = target_cols[pred_col_index]
+                        formula_string = str("=IF(AND([" + columns + "]56 = \"Not Complete\", [" + pred_col +
+                                             "]62 = \"Not Complete\"),\"Not Complete\", IF(AND(ISNUMBER([" +
+                                             pred_col + "]62) = true, ISNUMBER([" + columns + "]56) = true), "
+                                                                                              "[" + pred_col + "]62 + "
+                                                                                                               "[" + columns + "]56, [" + columns + "]56))")
+                    target_col_id = invMap[str(columns)]
+                    cellPackage.append(
+                        {"columnId": target_col_id, "format": format_string, "value": None, "strict": "false",
+                         "formula": formula_string})
+                updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | CUM_Defects_Closed | " + result['message']))
+        logging.info(str(sheet_id) + " | CUM_Defects_Closed | " + str(result))
+
+
+def lock_row_1():
+    row_number = 1
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            if row['rowNumber'] == row_number:
+                row_id = row['id']
+                updates_package[sheet_id].append({"id": row_id, "locked": True})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Lock Row 1 | " + result['message']))
+        logging.info(str(sheet_id) + " | Lock Row 1 | " + str(result))
+
+
+def lock_cols():
+    target_cols = ["SYSTEM_FILTER_", "Source", "Metrics", "Prior Month Symbol", "Description"]
+    payload = {"locked": True}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        for columns in target_cols:
+            target_col_id = invMap[str(columns)]
+            result = functions.updateColumns(payload, target_col_id, run_token, sheet_id)
+            print(str(str(sheet_id) + " | Lock Cols | " + result['message']))
+            logging.info(str(sheet_id) + " | Lock Cols | " + str(result))
+
+
+def adjust_col_width():
+    target_cols = ["Category"]
+    payload = {"width": 325, "locked": True}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        for columns in target_cols:
+            target_col_id = invMap[str(columns)]
+            result = functions.updateColumns(payload, target_col_id, run_token, sheet_id)
+            print(str(str(sheet_id) + " | Adjust Col Width | " + result['message']))
+            logging.info(str(sheet_id) + " | Adjust Col Width | " + str(result))
+
+
+def update_effort():
+    """
+    Update row 14 to new metrics formula
+    """
+
+    target_col_value = "Source"  # Target Column Name
+    format_string = None
+    formula_string = "=IF([Prior Years]14 = {Gray}, \"Gray\", IF(AND([Prior Years]14 <= {Effort - Yellow Upper}, " \
+                     "[Prior Years]14 > {Effort - Yellow Lower}), \"Yellow\", IF([Prior Years]14 >= {Effort - Red}, " \
+                     "\"Red\", IF([Prior Years]14 <= {Effort - Green}, \"Green\"))))"
+    target_rows = [14]
+
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        target_col_id = invMap[str(target_col_value)]
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            for row_number in target_rows:
+                if row['rowNumber'] == row_number:
+                    row_id = row['id']
+                    cellPackage = [
+                        {"columnId": target_col_id, "format": format_string, "value": None, "strict": "false",
+                         "formula": formula_string}]
+                    updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Update_Effort | " + result['message']))
+        logging.info(str(sheet_id) + " | Update_Effort | " + str(result))
+
+
+def update_title():
+    """
+    Update row 66 with new value Quality: Test Case Pass Rate
+    """
+
+    target_col_value = "Category"  # Target Column Name
+    format_string = None
+    target_rows = [66]
+
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        target_col_id = invMap[str(target_col_value)]
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            for row_number in target_rows:
+                if row['rowNumber'] == row_number:
+                    row_id = row['id']
+                    cellPackage = [
+                        {"columnId": target_col_id, "format": format_string, "value": "Quality: Test Case Pass Rate",
+                         "strict": "false"}]
+                    updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Update_Title | " + result['message']))
+        logging.info(str(sheet_id) + " | Update_Title | " + str(result))
+
+
+def update_overall_status():
+    """
+    Update row 14 to new metrics formula =IF(OR(Source5 >= 2, AND(Source5 >= 1, Source7 = 0)), "Red", IF(AND(Source5 >= 1, Source6 >= 1), "Yellow", IF(OR(AND(Source6 <= 2, Source5 = 0, Source7 >= 1), AND(Source7 > 0, Source6 <= 1, Source5 = 0)), "Green", IF(AND(Source5 = 0, Source6 = 0, Source7 = 0), "Gray", "Yellow"))))
+    """
+
+    target_col_value = "Source"  # Target Column Name
+    format_string = None
+    formula_string = "=IF(OR(Source5 > 2, AND(Source5 >= 1, Source7 = 0)), \"Red\", IF(AND(Source5 >= 1, " \
+                     "Source6 >= " \
+                     "1), \"Yellow\", IF(OR(AND(Source6 " \
+                     "<= 2, Source5 = 0, " \
+                     "Source7 >= 1), " \
+                     "AND(Source7 > 0, " \
+                     "Source6 <= 1, " \
+                     "Source5 = 0)), " \
+                     "\"Green\", IF(AND(Source5 = 0, Source6 = 0, Source7 = 0), \"Gray\", \"Yellow\"))))"
+    target_rows = [11]
+
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        target_col_id = invMap[str(target_col_value)]
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            for row_number in target_rows:
+                if row['rowNumber'] == row_number:
+                    row_id = row['id']
+                    cellPackage = [
+                        {"columnId": target_col_id, "format": format_string, "value": None, "strict": "false",
+                         "formula": formula_string}]
+                    updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Update_Overall_Status | " + result['message']))
+        logging.info(str(sheet_id) + " | Update_Overall_Status | " + str(result))
+
+
+def update_overall_status_text():
+    """
+    Update row 66 with new value Quality: Test Case Pass Rate
+    """
+
+    target_col_value = "Category"  # Target Column Name
+    format_string = None
+    target_rows = [11]
+
+    updates_package = {}
+    for sheet_id in sheets_list:
+        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        target_col_id = invMap[str(target_col_value)]
+        updates_package[sheet_id] = []
+        for row in data.get('rows', {}):
+            for row_number in target_rows:
+                if row['rowNumber'] == row_number:
+                    row_id = row['id']
+                    cellPackage = [
+                        {"columnId": target_col_id, "format": format_string, "value": "- More than 2 Reds = Red \n "
+                                                                                      "- More than 1 Red and no "
+                                                                                      "greens = Red \n "
+                                                                                      "- No More than 2 Yellows and "
+                                                                                      "no red = Green \n"
+                                                                                      "- All else = Yellow",
+                         "strict": "false"}]
+                    updates_package[sheet_id].append({"id": row_id, "cells": cellPackage})
+    for sheet in updates_package:
+        result = functions.update_rows(updates_package[sheet], run_token, sheet)
+        print(str(str(sheet) + " | Update Overall Status Text | " + result['message']))
+        logging.info(str(sheet_id) + " | Update Overall Status Text | " + str(result))
+
+
+workspace_id = NOPE
+run_token = NOEP
+
+search_value = "TBD"
+sheets_list, reports_list, sights_list, folders_list, sheet_name_list = get_all_objects_in_workspace(workspace_id,
+                                                                                                     search_value,
+run_token)
+
+print(sheets_list)
+print(sheet_name_list)
+delete_cmmi()
+update_source()
+update_effort()
+update_title()
+update_prior_month()
+update_overall_status()
+update_overall_status_text()
+testing_status_update()
+schedule_status_update()
+CUM_Defects_Post_testing_update()
+CUM_Defects_Closed_update()
+lock_row_1()
+lock_cols()
+adjust_col_width()

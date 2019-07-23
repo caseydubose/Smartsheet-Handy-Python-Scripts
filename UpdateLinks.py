@@ -19,7 +19,7 @@ def loadcsv():
         fieldnames = ['criticalpathid', 'projectcontactsurl', 'projectcharterurl', 'impactedstoresurl', 'prjname']
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
-        data = functions.getSheet(5392989494241156, token)
+        data = functions.get_sheet(5392989494241156, token)
         rows = data['rows']
         for r in rows:
             try:

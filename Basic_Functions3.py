@@ -9,11 +9,6 @@ folder_prefix = "https://api.smartsheet.com/2.0/folders/"
 sights_prefix = "https://api.smartsheet.com/2.0/sights/"
 
 
-#### Basic Functions ####
-#### Sheets ###
-
-###Reports###
-
 def build_insert_column_package(sheet, name, col_type, index, width, package, pick_list_items=None):
     temp_package = {"title": name, "type": col_type, "options": pick_list_items, "index": index, "width": width}
     package.append(temp_package)
@@ -51,7 +46,7 @@ def copy_rows_to_another_sheet_including_formulas(rows, target_sheet_id, target_
     return response
 
 
-def copy_Sheet_To_Folder(copyId, destinationFolderId, newName, token):
+def copy_sheet_to_folder(copyId, destinationFolderId, newName, token):
     URL = str("https://api.smartsheet.com/2.0/sheets/" + str(copyId) + "/" + "copy?include=all")
     payload = {"destinationType": "folder", "destinationId": destinationFolderId, "newName": newName}
     response = req.post_call(URL, token, payload)
@@ -156,7 +151,7 @@ def find_row_by_identifiers(column_value_pair_dict, colMap, rows, start_row=0, e
 
 
 def find_sheetformatting_from_report(reportId, run_token):
-    data, colMap, rowMap, invMap = initiateReport(reportId, run_token)
+    data, colMap, rowMap, invMap = initiate_report(reportId, run_token)
     current_sheet_id = None
     updates_package = {}
     for row in data["rows"]:
@@ -164,7 +159,7 @@ def find_sheetformatting_from_report(reportId, run_token):
         if current_sheet_id_check != current_sheet_id:
             current_sheet_id = str(row["sheetId"])
         if current_sheet_id not in updates_package:
-            result = getAutomation(current_sheet_id, run_token)
+            result = get_automation(current_sheet_id, run_token)
             sheetname = row["cells"][0]['value']
             totalcount = result['totalCount']
             updates_package[current_sheet_id] = []
@@ -226,7 +221,7 @@ def get_all_workspace(workspaceId, run_token):
     return result
 
 
-def getAllObjectsinWorkspace(workspace_id, run_token):
+def get_all_objects_in_workspace(workspace_id, run_token):
     sheets_list = []
     reports_list = []
     sights_list = []
@@ -274,7 +269,7 @@ def getAllSheetsinFolder(folderId, sheets, run_token):
     return sheets
 
 
-def getAutomation(SheetID, token, counter=5):
+def get_automation(SheetID, token, counter=5):
     SheetID = str(int(SheetID))
     URL = str(sheets_prefix + SheetID + str("/automationrules"))
     call = req.get_call(URL, token)
@@ -282,12 +277,10 @@ def getAutomation(SheetID, token, counter=5):
     return result
 
 
-def getReport(reportId, page, pageSize, run_token, Prefix="https://api.smartsheet.com/2.0/reports/"):
+def get_report(reportId, page, pageSize, run_token, Prefix="https://api.smartsheet.com/2.0/reports/"):
     URL = str(Prefix + reportId)
     headers1 = {"Authorization": str("Bearer " + run_token), 'Content-Type': 'application/json'}
-    perameters = {}
-    perameters['page'] = page
-    perameters['pageSize'] = pageSize
+    perameters = {'page': page, 'pageSize': pageSize}
     # call = req.get_call(URL,run_token)
     # result = call.execute_call(5)
     sheet = requests.get(URL, params=perameters,
@@ -304,7 +297,7 @@ def get_share(SheetID, token, counter=5):
     return result
 
 
-def getSheet(SheetID, token, counter=5):
+def get_sheet(SheetID, token, counter=5):
     SheetID = str(int(SheetID))
     URL = str(sheets_prefix + SheetID)
     call = req.get_call(URL, token, params="none")
@@ -313,15 +306,15 @@ def getSheet(SheetID, token, counter=5):
 
 
 def getSheetIdsFromReport(reportId, run_token):
-    data, colMap, rowMap, invMap = initiateReport(reportId, run_token)
+    data, colMap, rowMap, invMap = initiate_report(reportId, run_token)
     sheets = []
     for row in data["rows"]:
         sheets.append(row["sheetId"])
     return sheets
 
 
-def initiateReport(reportID, run_token):
-    data = getReport(reportID, 1, 500, run_token)
+def initiate_report(reportID, run_token):
+    data = get_report(reportID, 1, 500, run_token)
     report_len = data["totalRowCount"]
     if report_len < 500:
         total_pages = 1
@@ -343,7 +336,7 @@ def initiateReport(reportID, run_token):
     else:
         new_data["rows"] = []
         for page in range(1, total_pages):
-            row_data = getReport(reportID, page, 500, run_token)
+            row_data = get_report(reportID, page, 500, run_token)
             for row in row_data["rows"]:
                 new_data["rows"].append(row)
                 rowMap[row["rowNumber"]] = row["id"]
@@ -352,7 +345,9 @@ def initiateReport(reportID, run_token):
 
 
 def initiate_sheet(sheetId, run_token):
-    data = getSheet(sheetId, run_token)
+    data = get_sheet(sheetId, run_token)
+    # if 'data' not in data:
+    #    print data
     colMap, rowMap, invMap = create_sheetmap(data)
     return data, colMap, rowMap, invMap
 
@@ -410,16 +405,14 @@ def list_reports(token, counter=5):
 
 def list_sheets(token, page, pageSize, counter=5):
     URL = str("https://api.smartsheet.com/2.0/sheets")
-    params = {}
-    params['page'] = page
-    params['pageSize'] = pageSize
+    params = {'page': page, 'pageSize': pageSize}
     call = req.get_call(URL, token, params=params)
     result = call.execute_call(counter)
     return result
 
 
 def list_sights(token, counter=5):
-    URL = str("https://api.smartsheet.com/2.0/sheets")
+    URL = str("https://api.smartsheet.com/2.0/sights")
     call = req.get_call(URL, token)
     result = call.execute_call(counter)
     return result
@@ -434,9 +427,7 @@ def move_folder(folder_id, destinationType, destination_Id, run_token):
 
 
 def move_sheet(run_token, SheetID, destinationId, destinationType, counter=5):
-    package = {}
-    package['destinationType'] = destinationType
-    package['destinationId'] = destinationId
+    package = {'destinationType': destinationType, 'destinationId': destinationId}
     URL = str(sheets_prefix + str(int(SheetID)) + "/move")
     call = requests.post(URL, run_token, package)
     result = call.json()
@@ -458,7 +449,7 @@ def submit_insert_rows(package, SheetID, token):
     return result
 
 
-def udpate_master_roll_up(summary_sheet_id, label_col, data_col, target_sheet, run_token, row_id, additions):
+def update_master_roll_up(summary_sheet_id, label_col, data_col, target_sheet, run_token, row_id, additions):
     data, colMap, rowMap, invMap = initiate_sheet(summary_sheet_id, run_token)
     update_package = {}
     cell_link_package = []
@@ -488,7 +479,7 @@ def udpate_master_roll_up(summary_sheet_id, label_col, data_col, target_sheet, r
 
 
 def update_cellvalue_from_report(reportId, cell_value, target_column, run_token):
-    data, colMap, rowMap, invMap = initiateReport(reportId, run_token)
+    data, colMap, rowMap, invMap = initiate_report(reportId, run_token)
     current_sheet_id = None
     updates_package = {}
     for row in data["rows"]:
@@ -517,7 +508,7 @@ def update_cellvalue_from_report(reportId, cell_value, target_column, run_token)
 
 
 def update_colformatting_from_report(reportId, format_string, target_column, run_token):
-    data, colMap, rowMap, invMap = initiateReport(reportId, run_token)
+    data, colMap, rowMap, invMap = initiate_report(reportId, run_token)
     for row in data["rows"]:
         sheetid = row["sheetId"]
         columnid = row["cells"][4]['columnId']
@@ -561,7 +552,7 @@ def update_column_formatting_from_report(reportId, colNames, format_string, run_
 
 
 def update_formatting_from_report(reportId, format_string, target_column, run_token, update_column_formatting=False):
-    data, colMap, rowMap, invMap = initiateReport(reportId, run_token)
+    data, colMap, rowMap, invMap = initiate_report(reportId, run_token)
     current_sheet_id = None
     updates_package = {}
     for row in data["rows"]:
@@ -646,7 +637,7 @@ def update_row_to_match_template_row(rows, target_sheet_id, target_sheet_data, t
 
 
 def update_rowformatting_from_report(reportId, run_token):
-    data, colMap, rowMap, invMap = initiateReport(reportId, run_token)
+    data, colMap, rowMap, invMap = initiate_report(reportId, run_token)
     for row in data["rows"]:
         SheetID = row["sheetId"]
         RowID = row["id"]
@@ -658,7 +649,7 @@ def update_rowformatting_from_report(reportId, run_token):
 
 def update_sharing_from_report(reportId, access_level, email, run_token):
     access_payload = {"accessLevel": str(access_level), 'email': email}
-    data, colMap, rowMap, invMap = initiateReport(reportId, run_token)
+    data, colMap, rowMap, invMap = initiate_report(reportId, run_token)
     current_sheet_id = None
     updates_package = {}
     for row in data["rows"]:
