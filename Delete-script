@@ -18,8 +18,8 @@ def get_all_workspace(workspace_id, run_token):
 
 
 def delete_row(sheet_id, run_token, row_id):
-    URL = str("https://api.smartsheet.com/2.0/sheets/" + str(sheet_id) + "/rows?ids=" + str(row_id))
-    output = requests.delete(URL,
+    url = str("https://api.smartsheet.com/2.0/sheets/" + str(sheet_id) + "/rows?ids=" + str(row_id))
+    output = requests.delete(url,
                              headers={"Authorization": str("Bearer " + run_token), 'Content-Type': 'application/json'})
     result = output.json()
     return result
@@ -84,7 +84,7 @@ def find_value_in_column(data, colMap, value, columns_to_search):
 def delete_cmmi():
     """ Delete all rows where the name in the category matches the name in the search list """
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)
         my_file = os.path.join(THIS_FOLDER, 'deletevalues.txt')
         with open(my_file) as temp_file:
             delete_values_list = [line.rstrip("\n") for line in temp_file]
@@ -121,7 +121,7 @@ def update_source():
 
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         target_col_id = invMap[str(target_col_value)]
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
@@ -148,7 +148,7 @@ def update_prior_month():
 
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         target_col_id = invMap[str(target_col_value)]
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
@@ -174,7 +174,7 @@ def testing_status_update():
     row_number = 16
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
             if row['rowNumber'] == row_number:
@@ -203,7 +203,7 @@ def schedule_status_update():
     row_number = 12
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
             if row['rowNumber'] == row_number:
@@ -237,7 +237,7 @@ def CUM_Defects_Post_testing_update():
     row_number = 61
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
             if row['rowNumber'] == row_number:
@@ -279,7 +279,7 @@ def CUM_Defects_Closed_update():
     row_number = 62
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
             if row['rowNumber'] == row_number:
@@ -314,7 +314,7 @@ def lock_row_1():
     row_number = 1
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
             if row['rowNumber'] == row_number:
@@ -330,10 +330,10 @@ def lock_cols():
     target_cols = ["SYSTEM_FILTER_", "Source", "Metrics", "Prior Month Symbol", "Description"]
     payload = {"locked": True}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         for columns in target_cols:
             target_col_id = invMap[str(columns)]
-            result = functions.updateColumns(payload, target_col_id, run_token, sheet_id)
+            result = functions.update_columns(payload, target_col_id, run_token, sheet_id)
             print(str(str(sheet_id) + " | Lock Cols | " + result['message']))
             logging.info(str(sheet_id) + " | Lock Cols | " + str(result))
 
@@ -342,10 +342,10 @@ def adjust_col_width():
     target_cols = ["Category"]
     payload = {"width": 325, "locked": True}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         for columns in target_cols:
             target_col_id = invMap[str(columns)]
-            result = functions.updateColumns(payload, target_col_id, run_token, sheet_id)
+            result = functions.update_columns(payload, target_col_id, run_token, sheet_id)
             print(str(str(sheet_id) + " | Adjust Col Width | " + result['message']))
             logging.info(str(sheet_id) + " | Adjust Col Width | " + str(result))
 
@@ -364,7 +364,7 @@ def update_effort():
 
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         target_col_id = invMap[str(target_col_value)]
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
@@ -392,7 +392,7 @@ def update_title():
 
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         target_col_id = invMap[str(target_col_value)]
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
@@ -429,7 +429,7 @@ def update_overall_status():
 
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         target_col_id = invMap[str(target_col_value)]
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
@@ -457,7 +457,7 @@ def update_overall_status_text():
 
     updates_package = {}
     for sheet_id in sheets_list:
-        data, colMap, rowMap, invMap = functions.initiateSheet(sheet_id, run_token)  # scan sheet
+        data, colMap, rowMap, invMap = functions.initiate_sheet(sheet_id, run_token)  # scan sheet
         target_col_id = invMap[str(target_col_value)]
         updates_package[sheet_id] = []
         for row in data.get('rows', {}):
@@ -485,7 +485,7 @@ run_token = NOEP
 search_value = "TBD"
 sheets_list, reports_list, sights_list, folders_list, sheet_name_list = get_all_objects_in_workspace(workspace_id,
                                                                                                      search_value,
-run_token)
+                                                                                                     run_token)
 
 print(sheets_list)
 print(sheet_name_list)
